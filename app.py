@@ -107,7 +107,7 @@ def generate_projections(event_details, income_details, expected_rate, event_typ
     else:
         st.warning("Stock Price data not available in event details.")
 
-    # Project changes in income statement items
+    # Project changes in new income statement items
     for column in income_details.index:
         if column != 'Stock Name':
             current_value = pd.to_numeric(income_details[column], errors='coerce')
@@ -129,6 +129,35 @@ def generate_projections(event_details, income_details, expected_rate, event_typ
                 projections = pd.concat([projections, new_row], ignore_index=True)
             else:
                 st.warning(f"Could not convert current value for {column} to numeric.")
+
+    # Include the new columns for June 2024 in the projections
+    new_columns = [
+        'June 2024 Total Revenue/Income', 
+        'June 2024 Total Operating Expense', 
+        'June 2024 Operating Income/Profit', 
+        'June 2024 EBITDA', 
+        'June 2024 EBIT', 
+        'June 2024 Income/Profit Before Tax', 
+        'June 2024 Net Income From Continuing Operation', 
+        'June 2024 Net Income', 
+        'June 2024 Net Income Applicable to Common Share', 
+        'June 2024 EPS (Earning Per Share)'
+    ]
+
+    for col in new_columns:
+        if col in income_details.index:
+            current_value = pd.to_numeric(income_details[col], errors='coerce')
+            if pd.notna(current_value):  # Check if the conversion was successful
+                projected_value = current_value * (1 + rate_change / 100)  # Assuming a percentage change
+                change = projected_value - current_value
+                
+                new_row = pd.DataFrame([{
+                    'Parameter': col,
+                    'Current Value': current_value,
+                    'Projected Value': projected_value,
+                    'Change': change
+                }])
+                projections = pd.concat([projections, new_row], ignore_index=True)
 
     return projections
 
