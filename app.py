@@ -1,5 +1,6 @@
 import pandas as pd
 import streamlit as st
+import matplotlib.pyplot as plt
 
 # Load the data from Excel files
 inflation_data = pd.read_excel('Inflation_event_stock_analysis_resultsOct.xlsx')
@@ -48,6 +49,9 @@ def get_stock_details(stock_symbol, event_type):
         st.write(f"### Projected Changes Based on Expected {event_type}")
         st.dataframe(projections)
 
+        # Display graph for projections
+        display_projection_graph(projections)
+
         # Additional interpretations based on conditions
         if event_type == 'Inflation':
             interpret_inflation_data(event_details)
@@ -56,6 +60,20 @@ def get_stock_details(stock_symbol, event_type):
         interpret_income_data(income_details)
     else:
         st.warning('Stock symbol not found in the data. Please check the symbol and try again.')
+
+# Function to display a bar chart for projections
+def display_projection_graph(projections):
+    if not projections.empty:
+        fig, ax = plt.subplots()
+        ax.bar(projections['Parameter'], projections['Projected Value'], label='Projected Value', alpha=0.7)
+        ax.bar(projections['Parameter'], projections['Change'], label='Change', alpha=0.7, color='orange')
+        
+        ax.set_ylabel('Values')
+        ax.set_title('Projected Changes Based on Expected Event')
+        ax.legend()
+        plt.xticks(rotation=45, ha='right')
+        
+        st.pyplot(fig)
 
 # Function to interpret inflation data
 def interpret_inflation_data(details):
