@@ -1,6 +1,5 @@
 import pandas as pd
 import streamlit as st
-import plotly.graph_objects as go
 
 # Load the data from Excel files
 inflation_data = pd.read_excel('Inflation_event_stock_analysis_resultsOct.xlsx')
@@ -49,9 +48,6 @@ def get_stock_details(stock_symbol, event_type):
         st.write(f"### Projected Changes Based on Expected {event_type}")
         st.dataframe(projections)
 
-        # Display interactive graph for projections
-        display_projection_graph(projections)
-
         # Additional interpretations based on conditions
         if event_type == 'Inflation':
             interpret_inflation_data(event_details)
@@ -60,43 +56,6 @@ def get_stock_details(stock_symbol, event_type):
         interpret_income_data(income_details)
     else:
         st.warning('Stock symbol not found in the data. Please check the symbol and try again.')
-
-# Function to display an interactive graph for projections
-def display_projection_graph(projections):
-    if not projections.empty:
-        # Normalize the projected values and changes
-        projections['Normalized Projected Value'] = (projections['Projected Value'] - projections['Projected Value'].min()) / (projections['Projected Value'].max() - projections['Projected Value'].min())
-        projections['Normalized Change'] = (projections['Change'] - projections['Change'].min()) / (projections['Change'].max() - projections['Change'].min())
-        
-        # Create an interactive plotly bar chart
-        fig = go.Figure()
-
-        fig.add_trace(go.Bar(
-            x=projections['Parameter'],
-            y=projections['Normalized Projected Value'],
-            name='Normalized Projected Value',
-            marker_color='blue',
-            opacity=0.7
-        ))
-
-        fig.add_trace(go.Bar(
-            x=projections['Parameter'],
-            y=projections['Normalized Change'],
-            name='Normalized Change',
-            marker_color='orange',
-            opacity=0.7
-        ))
-
-        fig.update_layout(
-            title='Projected Changes Based on Expected Event',
-            barmode='group',
-            xaxis_title='Parameters',
-            yaxis_title='Normalized Values',
-            legend_title='Legend',
-            xaxis_tickangle=-45
-        )
-
-        st.plotly_chart(fig)
 
 # Function to interpret inflation data
 def interpret_inflation_data(details):
