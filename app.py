@@ -49,16 +49,55 @@ def get_stock_details(stock_symbol, event_type, method):
 
         # Additional interpretations based on conditions
         if event_type == 'Inflation':
-            interpret_inflation_data(event_details)
+            if 'Event Coefficient' in event_details.index:
+                interpret_inflation_data(event_details)
+            else:
+                st.warning('Event Coefficient not found in inflation event data.')
         else:
-            interpret_interest_rate_data(event_details)
+            if 'Event Coefficient' in event_details.index:
+                interpret_interest_rate_data(event_details)
+            else:
+                st.warning('Event Coefficient not found in interest rate event data.')
+
         interpret_income_data(income_details)
     else:
         st.warning('Stock symbol not found in the data. Please check the symbol and try again.')
 
+# Function to interpret inflation data
+def interpret_inflation_data(details):
+    st.write("### Interpretation of Inflation Event Data")
+    if 'Event Coefficient' in details.index:
+        if details['Event Coefficient'] < -1:
+            st.write("**1% Increase in Inflation:** Stock price decreases significantly. Increase portfolio risk.")
+        elif details['Event Coefficient'] > 1:
+            st.write("**1% Increase in Inflation:** Stock price increases, benefiting from inflation.")
+    else:
+        st.warning("Event Coefficient not found in inflation details.")
+
+# Function to interpret interest rate data
+def interpret_interest_rate_data(details):
+    st.write("### Interpretation of Interest Rate Event Data")
+    if 'Event Coefficient' in details.index:
+        if details['Event Coefficient'] < -1:
+            st.write("**1% Increase in Interest Rate:** Stock price decreases significantly. Increase portfolio risk.")
+        elif details['Event Coefficient'] > 1:
+            st.write("**1% Increase in Interest Rate:** Stock price increases, benefiting from interest hikes.")
+    else:
+        st.warning("Event Coefficient not found in interest rate details.")
+
+# Function to interpret income data
+def interpret_income_data(details):
+    st.write("### Interpretation of Income Statement Data")
+    if 'Average Operating Margin' in details.index:
+        average_operating_margin = details['Average Operating Margin']
+        if average_operating_margin > 0.2:
+            st.write("**High Operating Margin:** Indicates strong management effectiveness.")
+        elif average_operating_margin < 0.1:
+            st.write("**Low Operating Margin:** Reflects risk in profitability.")
+
 # Function to generate projections based on expected rate and calculation method
 def generate_projections(event_details, income_details, expected_rate, event_type, method):
-    latest_event_value = pd.to_numeric(income_details['Latest Event Value'], errors='coerce')
+    latest_event_value = pd.to_numeric(income_details.get('Latest Event Value', 0), errors='coerce')
     projections = pd.DataFrame(columns=['Parameter', 'Current Value', 'Projected Value', 'Change'])
 
     if 'Latest Close Price' in event_details.index:
