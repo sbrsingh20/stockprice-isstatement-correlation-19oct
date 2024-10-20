@@ -14,11 +14,15 @@ st.title('Stock Analysis Based on Economic Events')
 st.sidebar.header('Search for a Stock')
 event_type = st.sidebar.selectbox('Select Event Type:', ['Inflation', 'Interest Rate'])
 stock_name = st.sidebar.text_input('Enter Stock Symbol:', '')
+
+# User input for expected upcoming rate
 expected_rate = st.sidebar.number_input('Enter Expected Upcoming Rate (%):', value=3.65, step=0.01)
-calculation_method = st.sidebar.selectbox('Select Calculation Method:', ['Dynamic', 'Simple'])
+
+# User chooses calculation method
+calc_method = st.sidebar.selectbox('Select Calculation Method:', ['Simple', 'Dynamic'])
 
 # Function to fetch details for a specific stock based on the event type
-def get_stock_details(stock_symbol, event_type, method):
+def get_stock_details(stock_symbol, event_type):
     if event_type == 'Inflation':
         event_row = inflation_data[inflation_data['Symbol'] == stock_symbol]
         income_row = income_data[income_data['Stock Name'] == stock_symbol]
@@ -41,13 +45,13 @@ def get_stock_details(stock_symbol, event_type, method):
         st.write(income_row)
 
         # Generate projections based on expected rate
-        projections = generate_projections(event_details, income_details, expected_rate, event_type, method)
+        projections = generate_projections(event_details, income_details, expected_rate, event_type, calc_method)
         
         # Display projections
         st.write(f"### Projected Changes Based on Expected {event_type}")
         st.dataframe(projections)
 
-        # Additional interpretations based on conditions
+        # Additional interpretations
         if event_type == 'Inflation':
             interpret_inflation_data(event_details)
         else:
@@ -56,51 +60,42 @@ def get_stock_details(stock_symbol, event_type, method):
     else:
         st.warning('Stock symbol not found in the data. Please check the symbol and try again.')
 
-# Function to generate projections based on expected rate and calculation method
+# Function to generate projections based on expected rate
 def generate_projections(event_details, income_details, expected_rate, event_type, method):
-    latest_event_value = pd.to_numeric(income_details['Latest Event Value'], errors='coerce')
     projections = pd.DataFrame(columns=['Parameter', 'Current Value', 'Projected Value', 'Change'])
-
+    
+    # Check if 'Latest Close Price' exists
     if 'Latest Close Price' in event_details.index:
         latest_close_price = pd.to_numeric(event_details['Latest Close Price'], errors='coerce')
-
+        
         if method == 'Dynamic':
-            rate_change = expected_rate - latest_event_value
+            rate_change = expected_rate - pd.to_numeric(income_details['Latest Event Value'], errors='coerce')
             price_change = event_details['Event Coefficient'] * rate_change
-            projected_price = latest_close_price + price_change
-            change = price_change
-            explanation = "Dynamic calculation considers the event coefficient and rate change."
-        else:  # Simple
+        else:  # Simple calculation
             price_change = latest_close_price * (expected_rate / 100)
-            projected_price = latest_close_price + price_change
-            change = expected_rate
-            explanation = "Simple calculation uses the expected rate directly."
 
+        projected_price = latest_close_price + price_change
+        
         new_row = pd.DataFrame([{
             'Parameter': 'Projected Stock Price',
             'Current Value': latest_close_price,
             'Projected Value': projected_price,
-            'Change': change
+            'Change': price_change
         }])
         projections = pd.concat([projections, new_row], ignore_index=True)
-    else:
-        st.warning("Stock Price data not available in event details.")
 
     # Project changes in new income statement items
     for column in income_details.index:
         if column != 'Stock Name':
             current_value = pd.to_numeric(income_details[column], errors='coerce')
-            if pd.notna(current_value):
+            if pd.notna(current_value):  # Check if the conversion was successful
                 if method == 'Dynamic':
-                    if column in event_details.index:
-                        correlation_factor = event_details[column] if column in event_details.index else 0
-                        projected_value = current_value + (current_value * correlation_factor * (expected_rate - latest_event_value) / 100)
-                    else:
-                        projected_value = current_value * (1 + (expected_rate - latest_event_value) / 100)
-                    change = projected_value - current_value
-                else:  # Simple
-                    projected_value = current_value * (1 + expected_rate / 100)
-                    change = expected_rate
+                    correlation_factor = event_details[column] if column in event_details.index else 0
+                    projected_value = current_value + (current_value * correlation_factor * (expected_rate / 100))
+                else:  # Simple calculation
+                    projected_value = current_value * (1 + (expected_rate / 100))
+                
+                change = projected_value - current_value
 
                 new_row = pd.DataFrame([{
                     'Parameter': column,
@@ -110,42 +105,8 @@ def generate_projections(event_details, income_details, expected_rate, event_typ
                 }])
                 projections = pd.concat([projections, new_row], ignore_index=True)
 
-    # Include the new columns for June 2024 in the projections
-    new_columns = [
-        'June 2024 Total Revenue/Income', 
-        'June 2024 Total Operating Expense', 
-        'June 2024 Operating Income/Profit', 
-        'June 2024 EBITDA', 
-        'June 2024 EBIT', 
-        'June 2024 Income/Profit Before Tax', 
-        'June 2024 Net Income From Continuing Operation', 
-        'June 2024 Net Income', 
-        'June 2024 Net Income Applicable to Common Share', 
-        'June 2024 EPS (Earning Per Share)'
-    ]
-
-    for col in new_columns:
-        if col in income_details.index:
-            current_value = pd.to_numeric(income_details[col], errors='coerce')
-            if pd.notna(current_value):
-                if method == 'Dynamic':
-                    projected_value = current_value * (1 + (expected_rate - latest_event_value) / 100)
-                else:  # Simple
-                    projected_value = current_value * (1 + expected_rate / 100)
-
-                new_row = pd.DataFrame([{
-                    'Parameter': col,
-                    'Current Value': current_value,
-                    'Projected Value': projected_value,
-                    'Change': expected_rate
-                }])
-                projections = pd.concat([projections, new_row], ignore_index=True)
-
-    # Display the explanation for the chosen calculation method
-    st.write(f"**Explanation of Calculation Method:** {explanation}")
-
     return projections
 
 # Check if user has entered a stock symbol and selected an event
 if stock_name and event_type:
-    get_stock_details(stock_name, event_type, calculation_method)
+    get_stock_details(stock_name, event_type)
