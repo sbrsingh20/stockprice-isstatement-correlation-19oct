@@ -87,6 +87,7 @@ def interpret_income_data(details):
 def generate_projections(event_details, income_details, expected_rate, event_type):
     # Convert latest event value to numeric
     latest_event_value = pd.to_numeric(income_details['Latest Event Value'], errors='coerce')
+    
     # Calculate rate change from the latest value
     rate_change = expected_rate - latest_event_value
 
@@ -114,8 +115,9 @@ def generate_projections(event_details, income_details, expected_rate, event_typ
         if column != 'Stock Name' and column not in projections['Parameter'].values:
             current_value = pd.to_numeric(income_details[column], errors='coerce')
             if pd.notna(current_value):  # Check for valid numeric value
-                correlation_factor = event_details.get(column, 0)  # Use default of 0 if not found
-                projected_value = current_value * (1 + (correlation_factor * rate_change / 100))  # Adjusted formula
+                # Use correlation factor if available, otherwise assume direct percentage change
+                correlation_factor = event_details.get(column, 0)
+                projected_value = current_value * (1 + (correlation_factor * rate_change / 100))
                 change = projected_value - current_value
                 
                 new_row = pd.DataFrame([{
