@@ -92,8 +92,9 @@ def generate_projections(event_details, income_details, expected_rate, event_typ
     if event_type == 'Inflation':
         if 'Latest Close Price' in event_details.index:
             latest_close_price = pd.to_numeric(event_details['Latest Close Price'], errors='coerce')
-            price_change = event_details['Event Coefficient'] * expected_rate  # Sensitivity to expected rate
-            projected_price = latest_close_price + price_change
+            # Calculate projected price directly using the expected rate and event coefficient
+            projected_price = latest_close_price * (1 + (event_details['Event Coefficient'] * expected_rate / 100))
+            price_change = projected_price - latest_close_price
             
             new_row = pd.DataFrame([{
                 'Parameter': 'Projected Stock Price',
