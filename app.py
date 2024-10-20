@@ -85,16 +85,18 @@ def interpret_income_data(details):
 
 # Function to generate projections based on expected rate
 def generate_projections(event_details, income_details, expected_rate, event_type):
+    # Convert latest event value to numeric
     latest_event_value = pd.to_numeric(income_details['Latest Event Value'], errors='coerce')
+    # Calculate rate change from the latest value
     rate_change = expected_rate - latest_event_value
 
     # Create a DataFrame to store the results
     projections = pd.DataFrame(columns=['Parameter', 'Current Value', 'Projected Value', 'Change'])
 
-    # Check if 'Latest Close Price' exists
+    # Project stock price if 'Latest Close Price' exists
     if 'Latest Close Price' in event_details.index:
         latest_close_price = pd.to_numeric(event_details['Latest Close Price'], errors='coerce')
-        price_change = event_details['Event Coefficient'] * rate_change
+        price_change = event_details['Event Coefficient'] * rate_change  # Should reflect sensitivity
         projected_price = latest_close_price + price_change
         
         new_row = pd.DataFrame([{
@@ -107,17 +109,13 @@ def generate_projections(event_details, income_details, expected_rate, event_typ
     else:
         st.warning("Stock Price data not available in event details.")
 
-    # Project changes in new income statement items
+    # Project income statement items
     for column in income_details.index:
-        if column != 'Stock Name':
+        if column != 'Stock Name' and column not in projections['Parameter'].values:
             current_value = pd.to_numeric(income_details[column], errors='coerce')
-            if pd.notna(current_value):  # Check if the conversion was successful
-                if column in event_details.index:  # Check if there is a correlation factor
-                    correlation_factor = event_details[column] if column in event_details.index else 0
-                    projected_value = current_value + (current_value * correlation_factor * rate_change / 100)
-                else:
-                    projected_value = current_value * (1 + rate_change / 100)  # Simplified assumption
-                
+            if pd.notna(current_value):  # Check for valid numeric value
+                correlation_factor = event_details.get(column, 0)  # Use default of 0 if not found
+                projected_value = current_value * (1 + (correlation_factor * rate_change / 100))  # Adjusted formula
                 change = projected_value - current_value
                 
                 new_row = pd.DataFrame([{
@@ -130,7 +128,7 @@ def generate_projections(event_details, income_details, expected_rate, event_typ
             else:
                 st.warning(f"Could not convert current value for {column} to numeric.")
 
-    # Include the new columns for June 2024 in the projections
+    # Handle June 2024 projections
     new_columns = [
         'June 2024 Total Revenue/Income', 
         'June 2024 Total Operating Expense', 
@@ -147,8 +145,8 @@ def generate_projections(event_details, income_details, expected_rate, event_typ
     for col in new_columns:
         if col in income_details.index:
             current_value = pd.to_numeric(income_details[col], errors='coerce')
-            if pd.notna(current_value):  # Check if the conversion was successful
-                projected_value = current_value * (1 + rate_change / 100)  # Assuming a percentage change
+            if pd.notna(current_value):
+                projected_value = current_value * (1 + (expected_rate / 100))  # Direct percentage change
                 change = projected_value - current_value
                 
                 new_row = pd.DataFrame([{
