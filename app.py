@@ -85,39 +85,31 @@ def interpret_income_data(details):
 
 # Function to generate projections based on expected rate
 def generate_projections(event_details, income_details, expected_rate, event_type):
-    # Convert latest event value to numeric
-    latest_event_value = pd.to_numeric(income_details['Latest Event Value'], errors='coerce')
-    
-    # Calculate rate change from the latest value
-    rate_change = expected_rate - latest_event_value
-
     # Create a DataFrame to store the results
     projections = pd.DataFrame(columns=['Parameter', 'Current Value', 'Projected Value', 'Change'])
 
-    # Project stock price if 'Latest Close Price' exists
-    if 'Latest Close Price' in event_details.index:
-        latest_close_price = pd.to_numeric(event_details['Latest Close Price'], errors='coerce')
-        price_change = event_details['Event Coefficient'] * rate_change  # Should reflect sensitivity
-        projected_price = latest_close_price + price_change
-        
-        new_row = pd.DataFrame([{
-            'Parameter': 'Projected Stock Price',
-            'Current Value': latest_close_price,
-            'Projected Value': projected_price,
-            'Change': price_change
-        }])
-        projections = pd.concat([projections, new_row], ignore_index=True)
-    else:
-        st.warning("Stock Price data not available in event details.")
+    # Calculate changes for the inflation event data
+    if event_type == 'Inflation':
+        if 'Latest Close Price' in event_details.index:
+            latest_close_price = pd.to_numeric(event_details['Latest Close Price'], errors='coerce')
+            price_change = event_details['Event Coefficient'] * expected_rate  # Sensitivity to expected rate
+            projected_price = latest_close_price + price_change
+            
+            new_row = pd.DataFrame([{
+                'Parameter': 'Projected Stock Price',
+                'Current Value': latest_close_price,
+                'Projected Value': projected_price,
+                'Change': price_change
+            }])
+            projections = pd.concat([projections, new_row], ignore_index=True)
 
     # Project income statement items
     for column in income_details.index:
-        if column != 'Stock Name' and column not in projections['Parameter'].values:
+        if column != 'Stock Name':
             current_value = pd.to_numeric(income_details[column], errors='coerce')
-            if pd.notna(current_value):  # Check for valid numeric value
-                # Use correlation factor if available, otherwise assume direct percentage change
+            if pd.notna(current_value):  # Ensure valid numeric conversion
                 correlation_factor = event_details.get(column, 0)
-                projected_value = current_value * (1 + (correlation_factor * rate_change / 100))
+                projected_value = current_value * (1 + (correlation_factor * expected_rate / 100))  # Adjusted formula
                 change = projected_value - current_value
                 
                 new_row = pd.DataFrame([{
@@ -127,8 +119,6 @@ def generate_projections(event_details, income_details, expected_rate, event_typ
                     'Change': change
                 }])
                 projections = pd.concat([projections, new_row], ignore_index=True)
-            else:
-                st.warning(f"Could not convert current value for {column} to numeric.")
 
     # Handle June 2024 projections
     new_columns = [
